@@ -1226,7 +1226,7 @@ static BOOL WINAPI onConsoleCtrl(DWORD evt) {
 
 class Terminal {
 public:
-    Terminal() : active_(false), hIn_(NULL), hOut_(NULL), inMode_(0), outMode_(0) {}
+    Terminal() : active_(false), hIn_(NULL), hOut_(NULL), inMode_(0), outMode_(0), inCp_(0), outCp_(0) {}
     ~Terminal() { restore(); }
     bool init(std::string& err) {
         hIn_ = GetStdHandle(STD_INPUT_HANDLE);
@@ -1256,6 +1256,14 @@ public:
             err = "cannot switch the console input to raw mode";
             return false;
         }
+        // Cyrillic and other non-ASCII keys must arrive as UTF-8 so the input
+        // parser sees proper multibyte sequences (legacy consoles use CP866/1251,
+        // which would deliver single undecodable bytes). Best effort: keep going
+        // even if the codepage switch fails.
+        inCp_ = GetConsoleCP();
+        outCp_ = GetConsoleOutputCP();
+        SetConsoleCP(CP_UTF8);
+        SetConsoleOutputCP(CP_UTF8);
         active_ = true;
         SetConsoleCtrlHandler(onConsoleCtrl, TRUE);
         write(TERM_ENTER);
@@ -1266,6 +1274,8 @@ public:
         active_ = false;
         write(TERM_LEAVE);
         SetConsoleCtrlHandler(onConsoleCtrl, FALSE);
+        if (inCp_) SetConsoleCP(inCp_);
+        if (outCp_) SetConsoleOutputCP(outCp_);
         SetConsoleMode(hIn_, inMode_);
         SetConsoleMode(hOut_, outMode_);
     }
@@ -1321,6 +1331,7 @@ private:
     bool active_;
     HANDLE hIn_, hOut_;
     DWORD inMode_, outMode_;
+    UINT inCp_, outCp_;  // console codepages to restore on exit (0 = unknown)
 };
 
 #else
