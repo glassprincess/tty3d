@@ -1,0 +1,50 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build + selftest (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          g++ -O3 -Wall -Wextra -Wpedantic -Wshadow -std=c++11 main.cpp -o tty3d
+          ./tty3d --selftest
+          ./tty3d --bench 20 --size 80x24 -m knot > /dev/null
+
+      - name: Build + selftest (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          g++ -O3 -Wall -Wextra -Wpedantic -Wshadow -std=c++11 -static main.cpp -o tty3d.exe
+          ./tty3d.exe --selftest
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tty3d-${{ runner.os }}
+          path: tty3d*
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**/*
+          generate_release_notes: true
