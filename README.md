@@ -5,6 +5,14 @@ Renders 3D models as ASCII art, right in the terminal. No OpenGL, no Vulkan, no 
 > Fork of **tri3d**, renamed to `tty3d` so it doesn't squat on the original name.
 > This fork adds: Windows support, input logging (`--log` / `--debug`), non-Latin keyboard layouts, CMake + build scripts.
 
+## Screenshots
+
+![donut](docs/donut.png)
+![knot](docs/knot.png)
+![sphere](docs/sphere.png)
+![cone](docs/cone.png)
+![icosahedron](docs/icosahedron.png)
+
 ## Build
 
 ```sh
