@@ -1,0 +1,15 @@
+tty3d
+tty3d_asan
+tty3d.exe
+*.log
+*.o
+__pycache__/
+build/
+build-asan/
+build-*/
+demo.gif
+.vs/
+*.user
+*.pdb
+*.ilk
+*.obj.bin
