@@ -1,177 +1,100 @@
-# tty3d — 3D-рендерер в терминале на чистом CPU
+# tty3d — software 3D renderer for your terminal
 
-> Форк проекта **tri3d** (переименован в `tty3d`, чтобы не занимать оригинальное имя).
-> Новое в форке: поддержка Windows (VT-ввод, восстановление консоли), логи ввода
-> (`--log` / `--debug`), бинды на нелатинских раскладках, `CMakeLists.txt` + `build.bat`/`build.sh`.
+Renders 3D models as ASCII art, right in the terminal. No OpenGL, no Vulkan, no GUI libraries — just C++, CPU math, and a byte stream to `stdout`. One file: `main.cpp`, standard library only.
 
-Программный (software) рендерер: классический графический конвейер 90-х, но вместо пикселей — сетка символов терминала.
-Без OpenGL, DirectX, Vulkan и GUI-библиотек. Только математика, CPU и поток байтов в `stdout`.
-Один файл `main.cpp`, только стандартная библиотека C++ и системный API терминала.
+> Fork of **tri3d**, renamed to `tty3d` so it doesn't squat on the original name.
+> This fork adds: Windows support, input logging (`--log` / `--debug`), non-Latin keyboard layouts, CMake + build scripts.
 
-## Сборка
+## Build
 
 ```sh
-./build.sh                         # Linux / macOS: g++ или clang++, C++11
-# или вручную:
-g++ -O3 -Wall -Wextra -Wpedantic -Wshadow -std=c++11 main.cpp -o tty3d
-# или через CMake:
-cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
+./build.sh                                # Linux / macOS
+g++ -O3 -Wall -Wextra -std=c++11 main.cpp -o tty3d   # by hand
+cmake -B build && cmake --build build     # or CMake
 ```
 
-Windows (10+ / Windows Terminal):
+Windows 10+ (use Windows Terminal):
 
 ```bat
-build.bat                          @rem MinGW g++ -> tty3d.exe, иначе MSVC cl, иначе CMake
-@rem вручную MinGW:
-g++ -O3 -Wall -Wextra -std=c++11 main.cpp -o tty3d.exe
-@rem вручную MSVC (x64 Native Tools):
-cl /O2 /EHsc /std:c++14 main.cpp /Fe:tty3d.exe
+build.bat                                 @rem tries g++, then cl, then CMake
+g++ -O3 -std=c++11 -static main.cpp -o tty3d.exe     @rem MinGW, by hand
 ```
 
-Если компилятора нет:
-```powershell
-winget install -e --id MinGW.MinGW-w64
-# или: winget install -e --id Microsoft.VisualStudio.2022.BuildTools
-```
+No compiler? `winget install MinGW.MinGW-w64` or grab VS Build Tools.
 
-Проверено: g++ 13.3 на Linux x86-64 (C++11/14/17/20 без предупреждений);
-Windows: g++ 16.1 MinGW-w64 UCRT x86-64, `-O3 -Wall -Wextra -Wpedantic -Wshadow -static`,
-0 предупреждений, `tty3d.exe --selftest` — all 76 checks passed, `--bench`/`--help`/загрузка
-`models/*.obj` работают, exe статический (~760 КБ, только системные DLL).
-Windows-ветка: `SetConsoleMode` + `ENABLE_VIRTUAL_TERMINAL_INPUT`, ввод через `ReadFile`
-(стрелки/мышь SGR `ESC[<b;x;yM/m`/колесо/`Ctrl+C` как ANSI-байты), `SetConsoleCtrlHandler`
-восстанавливает консоль при закрытии окна. Требует Windows 10+ / Windows Terminal.
-macOS: используется тот же POSIX-код (`termios`, `select`), но на macOS проект не запускался.
-
-## Запуск
+## Run
 
 ```sh
-./tty3d                       # бублик (donut)
-./tty3d --color amber -m knot # трилистник янтарным цветом (TrueColor)
+./tty3d                        # spinning donut
+./tty3d --color amber -m knot
 ./tty3d models/icosahedron.obj
-./tty3d my_model.obj other.obj   # несколько файлов; клавиша n листает модели
+./tty3d a.obj b.obj            # press n to flip through models
 ```
 
-Встроенные модели, доступные всегда: `donut`, `cube`, `sphere`, `cone`, `knot`.
-Свои модели — обычный Wavefront `.obj` (строки `v` и `f`; многоугольники триангулируются веером, поддерживаются
-`v/vt/vn`-индексы и отрицательные индексы; всё остальное игнорируется, битые грани пропускаются с сообщением).
-Модель автоматически центрируется и масштабируется под единичную сферу.
+Built in: `donut`, `cube`, `sphere`, `cone`, `knot`. Your own files: plain Wavefront `.obj` (`v` + `f` lines, polygons get fan-triangulated). Models are auto-centered and scaled to fit.
 
-### Управление
+### Controls
 
-| Действие | Ввод |
+| What | How |
 |---|---|
-| вращать модель во всех плоскостях | зажать левую кнопку мыши и тянуть, либо стрелки |
-| приближение / отдаление | колесо мыши, `+` / `-` |
-| авто-вращение вкл/выкл | `пробел` |
-| следующая модель | `n` |
-| цвет: выкл → amber → cyan → green → magenta | `c` |
-| плоское / сглаженное освещение | `s` |
-| вращающийся источник света | `l` |
-| оверлей (FPS, полигоны/вершины, зум, состояния) | `h` |
-| сброс вида | `r` |
-| выход | `q`, `Esc`, `Ctrl+C` |
+| rotate | drag with left mouse button, or arrow keys |
+| zoom | mouse wheel, `+` / `-` |
+| auto-rotate | `space` |
+| next model | `n` |
+| color: off → amber → cyan → green → magenta | `c` |
+| flat / smooth shading | `s` |
+| orbiting light | `l` |
+| overlay on/off | `h` |
+| reset view | `r` |
+| quit | `q`, `Esc`, `Ctrl+C` |
 
-### Параметры
+Letter keys also work on Russian layout (`й=q`, `с=c`, `ы=s`, `т=n`, `р=h`, `д=l`, `к=k`).
 
 ```
--m, --model NAME   стартовая модель (встроенная или имя загруженного файла)
+-m, --model NAME   start model (built-in or loaded file name)
     --color NAME   off | amber | cyan | green | magenta
-    --smooth       сглаженные нормали
-    --no-cull      не отсекать обратные грани (двустороннее освещение)
-    --fps N        ограничение кадров, 0..1000 (по умолчанию 60, 0 — без лимита)
-    --aspect X     отношение высоты ячейки терминала к ширине, 0.5..4 (по умолчанию 2)
-    --no-hud       без оверлея
-    --bench N      без терминала: N кадров, последний выводится текстом, время — в stderr
-    --size WxH     размер для --bench (по умолчанию 100x40)
-    --log FILE     писать диагностику ввода в файл: сырые байты, события, действия
-    --debug        вторая строка HUD: последнее событие ввода и что оно сделало
-    --selftest     встроенные тесты
+    --smooth       smooth (interpolated) normals
+    --no-cull      two-sided lighting, no back-face culling
+    --fps N        0..1000, default 60 (0 = uncapped)
+    --aspect X     cell height/width, 0.5..4, default 2
+    --no-hud       no overlay
+    --bench N      headless: render N frames, print the last one
+    --size WxH     size for --bench, default 100x40
+    --log FILE     log raw input bytes, parsed events, actions
+    --debug        HUD line showing the last input event live
+    --selftest     built-in tests
 ```
 
-Буквенные бинды работают и на русской раскладке (`й=q`, `с=c`, `ы=s`, `т=n`, `р=h`, `д=l`, `к=k`).
+Model inside-out or missing faces? It probably has flipped winding — try `--no-cull`.
 
-### Не работают бинды? Смотрите логи
+### Binds not working? Check the log
 
 ```sh
 ./tty3d --log input.log --debug
-# покликайте/понажимайте, выйдите через q, затем:
-cat input.log
+# click around, press keys, quit with q, then read input.log
 ```
 
-В логе видно: `raw (...)` — что реально прислал терминал, `event:` — что понял парсер,
-`=> ...` — что сделала программа. Типовые диагнозы:
+`raw (...)` = what your terminal actually sent, `event:` = what the parser made of it, `=> ...` = what the program did. No `raw` while dragging = your terminal doesn't do mouse tracking (needs SGR `1002`+`1006`, e.g. Windows Terminal / xterm).
 
-| Лог | Причина |
-|---|---|
-| двигаете мышь, а `raw` пустой | терминал не включил mouse tracking (нужен Windows Terminal / xterm с SGR `1002`+`1006`) |
-| `raw` есть, а `event: (no complete sequence yet)` | последовательность режется (медленный SSH/консоль) |
-| `=> ignored ...` | клавиша не забиндена — смотрите таблицу управления выше |
+## How it works
 
-Если у модели «выворачивается наизнанку» или пропадают грани — у неё, вероятно, обратный порядок обхода вершин:
-запустите с `--no-cull`.
+Four stages, in order, all in `main.cpp`:
 
-## Как это устроено
+1. **Math** — hand-rolled `Vec3`/`Vec4`/`Mat4`/`Quat`. Model matrix (center, scale, quaternion rotation), `lookAt` view, perspective projection. Mouse rotation accumulates in a quaternion, so no gimbal lock.
+2. **Rasterizer** — near-plane clipping (Sutherland–Hodgman), barycentric fill, Z-buffer storing `1/w`. Back-face culling in view space.
+3. **Shading** — Lambert `N·L` + 0.10 ambient mapped onto `" .:-=+*#%@"`, optional 24-bit color. Smooth mode interpolates area-weighted vertex normals, perspective-correct.
+4. **Output** — double-buffered diff: only changed cells go out, one `write()` per frame. Raw mode, alternate screen, hidden cursor, SGR mouse. Terminal state is restored on every exit path.
 
-Конвейер из четырёх этапов, в `main.cpp` они идут в том же порядке.
-
-1. **Математика.** Свои `Vec3`, `Vec4`, `Mat4` (4×4) и кватернион `Quat`. Для каждой вершины:
-   Model-матрица (центрирование, масштаб, вращение кватернионом), View-матрица (`lookAt`), Projection-матрица
-   (перспектива в OpenGL-конвенции, деление на `w` даёт конус обзора). Вращение мышью накапливается в кватернионе
-   (нет «карданова замка»), кватернион регулярно нормализуется.
-2. **Растеризация и Z-буфер.** Треугольники, пересекающие ближнюю плоскость, отсекаются (Sutherland–Hodgman в clip-space);
-   полностью невидимые отбрасываются по outcode. Точки внутри треугольника находятся через **барицентрические координаты**
-   (edge functions, центры ячеек в `x+0.5, y+0.5`). Z-буфер — плоский массив `float` размера `Ширина × Высота`;
-   в нём хранится `1/w` (линейно интерполируется в экранном пространстве, точнее сырого `z`); новая точка,
-   не ближе записанной, отбрасывается. Отсечение обратных граней — в пространстве камеры.
-3. **Шейдинг символами.** Модель Ламберта: нормаль грани (векторное произведение рёбер), `N·L`, плюс фоновая
-   составляющая `0.10`. Освещённость проецируется на градиент `" .:-=+*#%@"`. Любая закрашенная ячейка получает
-   минимум символ `.`, чтобы силуэт не растворялся в фоне. Режим `s` — сглаженные нормали
-   (вершинные нормали усредняются по площади граней и интерполируются перспективно-корректно). Цвет — ANSI 24-bit
-   (`ESC[38;2;R;G;Bm`), яркость квантуется до 32 уровней, чтобы посылать меньше смен цвета.
-   Пропорции ячейки (высота ≈ 2 ширины) учтены в матрице проекции, поэтому шар остаётся круглым.
-4. **Вывод без мерцания.** Два буфера в памяти (текущий и предыдущий кадр символов + цвет). В терминал уходят только
-   изменившиеся ячейки; весь кадр собирается в одну строку и отправляется **одним `write()`**. Первый кадр и кадр после
-   изменения размера — полная перерисовка (`ESC[2J ESC[H`). Терминал переводится в raw mode через `termios`
-   (в Windows — `SetConsoleMode`), включается альтернативный экран, скрывается курсор, отключается автоперенос строк.
-   При любом выходе (`q`, `Esc`, `Ctrl+C`, `SIGTERM`, `SIGHUP`, закрытие терминала) состояние терминала восстанавливается.
-
-### Мышь
-
-Включается протокол SGR (`ESC[?1006h`). Для перетаскивания используется режим `ESC[?1002h`
-(события движения только при зажатой кнопке) — этого достаточно и он шлёт меньше данных, чем `?1003h`
-(движение без нажатия). Парсер обрабатывает `ESC[<b;x;yM/m`, колесо, стрелки и последовательности,
-разрезанные между чтениями.
-
-## Тесты
+## Tests
 
 ```sh
-g++ -O1 -g -fsanitize=address,undefined -o tty3d_asan main.cpp
-./tty3d_asan --selftest                     # матрицы, кватернионы, проекция, растеризатор, Z-буфер, клиппинг,
-                                            # OBJ-парсер, парсер ввода, diff-вывод, управление, перебор размеров/зума
-python3 tests/pty_test.py ./tty3d           # запуск в настоящем pty: клавиши, мышь, колесо, ресайз, восстановление терминала
-python3 tests/pty_exit_test.py ./tty3d      # q / Esc / Ctrl+C / SIGTERM / SIGHUP, ограничение --fps
+./tty3d --selftest                     # 76 checks, runs anywhere
+g++ -O1 -g -fsanitize=address,undefined -o tty3d_asan main.cpp && ./tty3d_asan --selftest
+python3 tests/pty_test.py ./tty3d      # Linux only: real pty, keys/mouse/resize
 ```
 
-`pty_test.py` и `pty_exit_test.py` — только Linux (модуль `pty`, чтение номера pts через `ioctl`).
-На Windows проверяйте кроссплатформенно:
-```bat
-tty3d.exe --selftest
-tty3d.exe --bench 100 --size 100x40 -m knot
-```
+Bench your machine: `./tty3d --bench 300 --size 200x50 -m knot` (timing goes to stderr).
 
-## Производительность
+## Limits
 
-Замер в вашей среде: `./tty3d --bench 300 --size 200x50 -m knot` — в stderr выводится среднее время кадра
-(растеризация + перевод в символы, один поток; без вывода в терминал).
-
-## Демо-гифка
-
-`demo.tape` — сценарий для [vhs](https://github.com/charmbracelet/vhs): `vhs demo.tape` запишет `demo.gif`. Сценарий не проверялся: vhs в среде разработки не было.
-Оверлей с FPS и числом полигонов уже встроен (клавиша `h`). Мышь vhs имитировать не умеет.
-
-## Ограничения
-
-* Нет текстур, материалов из `.mtl` и теней; цвет задаётся палитрой, а не моделью.
-* Форма ASCII-градиента и цвета — вопрос вкуса; ряд меняется константой `RAMP` в `main.cpp`.
-* Вывод по SSH/в медленных терминалах ограничен пропускной способностью канала; режим без цвета шлёт меньше байт.
+No textures, no `.mtl`, no shadows. Tweak `RAMP` in `main.cpp` if you don't like the gradient. Over SSH the bottleneck is the pipe, not the renderer — run without color to send fewer bytes.
